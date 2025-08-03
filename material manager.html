@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Material List Manager</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+    background: #f9f9f9;
+    color: #333;
+  }
+  #container {
+    max-width: 900px;
+    margin: 0 auto;
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 0 12px rgba(0,0,0,0.1);
+  }
+  h1 {
+    text-align: center;
+  }
+  #job-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  .job-item {
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    margin-bottom: 15px;
+    background: #fafafa;
+    padding: 10px;
+  }
+  .job-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .job-header input[type="text"] {
+    flex-grow: 1;
+    font-weight: bold;
+    font-size: 1.1em;
+    padding: 6px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+  }
+  .job-header button {
+    padding: 6px 10px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    background: #007bff;
+    color: white;
+    font-weight: 600;
+    transition: background-color 0.3s;
+  }
+  .job-header button:hover {
+    background: #0056b3;
+  }
+  .job-header button:last-child {
+    background: #dc3545;
+  }
+  .materials {
+    margin-top: 10px;
+    padding-left: 10px;
+    border-left: 3px solid #007bff;
+  }
+  .material {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .name-container {
+    flex-grow: 1;
+  }
+  .name-container span {
+    cursor: pointer;
+  }
+  .material input[type="number"] {
+    width: 60px;
+    padding: 4px;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+  }
+  .material button {
+    padding: 4px 8px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    background: #007bff;
+    color: white;
+    font-weight: 600;
+    transition: background-color 0.3s;
+  }
+  .material button:hover {
+    background: #0056b3;
+  }
+  .material button:last-child {
+    background: #dc3545;
+  }
+  .add-material {
+    display: flex;
+    gap: 6px;
+    margin-top: 10px;
+  }
+  .add-material input[type="text"] {
+    flex-grow: 1;
+    padding: 6px;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+  }
+  .autocomplete-list {
+    position: absolute;
+    background: white;
+    border: 1px solid #ccc;
+    max-height: 140px;
+    overflow-y: auto;
+    width: calc(100% - 12px);
+    z-index: 1000;
+    border-radius: 0 0 6px 6px;
+  }
+  .autocomplete-item {
+    padding: 6px;
+    cursor: pointer;
+  }
+  .autocomplete-item:hover {
+    background: #007bff;
+    color: white;
+  }
+  #filter-input {
+    width: 100%;
+    padding: 8px;
+    margin-bottom: 20px;
+    font-size: 1em;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+  }
+  #summary-modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    width: 320px;
+    max-height: 400px;
+    overflow-y: auto;
+    transform: translate(-50%, -50%);
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 0 14px rgba(0,0,0,0.3);
+    padding: 20px;
+    display: none;
+    z-index: 2000;
+  }
+  #summary-modal.show {
+    display: block;
+  }
+  #summary-modal h2 {
+    margin-top: 0;
+    margin-bottom: 12px;
+  }
+  #summary-list {
+    list-style: none;
+    padding-left: 0;
+    max-height: 320px;
+    overflow-y: auto;
+  }
+  #summary-list li {
+    padding: 4px 0;
+    border-bottom: 1px solid #eee;
+  }
+  #summary-close {
+    margin-top: 12px;
+    padding: 6px 12px;
+    background: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  #controls {
+    margin-bottom: 15px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  #controls button {
+    padding: 8px 12px;
+    border: none;
+    border-radius: 6px;
+    background: #007bff;
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.3s;
+  }
+  #controls button:hover {
+    background: #0056b3;
+  }
+</style>
+</head>
+<body>
+
+<div id="container">
+  <h1>Material List Manager</h1>
+
+  <input type="text" id="filter-input" placeholder="Search jobs and materials..." />
+
+  <div id="controls">
+    <button id="add-job-btn">Add Job</button>
+    <button id="export-btn">Export Data</button>
+    <button id="import-btn">Import Data</button>
+    <button id="summary-btn">View Combined Summary</button>
+  </div>
+
+  <ul id="job-list"></ul>
+</div>
+
+<!-- Summary Modal -->
+<div id="summary-modal" tabindex="-1" aria-modal="true" role="dialog">
+  <h2>Combined Materials Summary</h2>
+  <ul id="summary-list"></ul>
+  <button id="summary-close">Close</button>
+</div>
+
+<script>
+  // Data structure
+  let data = {
+    jobs: {
+      // jobName: { mats: { matName: qty }, matOrder: [] }
+    },
+    jobOrder: [],
+    materialHistory: []
+  };
+
+  // Track which jobs have materials expanded
+  const expandedJobs = new Set();
+
+  // Save and load data
+  function save() {
+    localStorage.setItem('materialListData', JSON.stringify(data));
+  }
+  function load() {
+    const stored = localStorage.getItem('materialListData');
+    if (stored) {
+      data = JSON.parse(stored);
+      if (!data.materialHistory) data.materialHistory = [];
+      if (!data.jobOrder) data.jobOrder = [];
+    }
+  }
+
+  load();
+
+  // Add Job
+  function addJob() {
+    let newName = prompt('Enter new job name:');
+    if (!newName) return;
+    newName = newName.trim();
+    if (data.jobs[newName]) {
+      alert('Job name already exists.');
+      return;
+    }
+    data.jobs[newName] = { mats: {}, matOrder: [] };
+    data.jobOrder.push(newName);
+    expandedJobs.add(newName); // auto-expand new job
+    save();
+    renderAll();
+  }
+
+  // Rename Job
+  function renameJob(oldName, newName) {
+    newName = newName.trim();
+    if (!newName || newName === oldName) {
+      renderAll(); // reset input to old name if invalid
+      return;
+    }
+    if (data.jobs[newName]) {
+      alert('Job name already exists.');
+      renderAll();
+      return;
+    }
+    data.jobs[newName] = data.jobs[oldName];
+    delete data.jobs[oldName];
+    // Update jobOrder
+    const idx = data.jobOrder.indexOf(oldName);
+    if (idx !== -1) data.jobOrder[idx] = newName;
+    // Update expandedJobs
+    if (expandedJobs.has(oldName)) {
+      expandedJobs.delete(oldName);
+      expandedJobs.add(newName);
+    }
+    save();
+    renderAll();
+  }
+
+  // Delete Job
+  function deleteJob(job) {
+    if (!confirm(`Delete job "${job}"?`)) return;
+    delete data.jobs[job];
+    const idx = data.jobOrder.indexOf(job);
+    if (idx !== -1) data.jobOrder.splice(idx, 1);
+    expandedJobs.delete(job);
+    save();
+    renderAll();
+  }
+
+  // Add Material to Job
+  function addMaterial(job) {
+    const input = document.getElementById(`add-mat-${job}`);
+    if (!input) return;
+    let matName = input.value.trim();
+    if (!matName) return;
+    if (data.jobs[job].mats[matName] !== undefined) {
+      alert('Material already exists in this job.');
+      input.value = '';
+      return;
+    }
+    data.jobs[job].mats[matName] = 1;
+    data.jobs[job].matOrder.push(matName);
+    input.value = '';
+
+    // Add to materialHistory if new
+    if (!data.materialHistory.includes(matName)) {
+      data.materialHistory.push(matName);
+    }
+    save();
+    renderAll();
+  }
+
+  // Rename Material
+  function startRenameMat(job, oldName) {
+    const matsDiv = document.getElementById(`mats-${job}`);
+    if (!matsDiv) return;
+
+    // Find the material div
+    const matDivs = matsDiv.getElementsByClassName('material');
+    for (const matDiv of matDivs) {
+      if (matDiv.dataset.mat === oldName) {
+        const nameCont = matDiv.querySelector('.name-container');
+        nameCont.innerHTML = ''; // clear current
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.value = oldName;
+        input.style.width = '100%';
+        input.onblur = () => finishRenameMat(job, oldName, input.value.trim());
+        input.onkeydown = (e) => {
+          if (e.key === 'Enter') {
+            input.blur();
+          } else if (e.key === 'Escape') {
+            renderAll();
+          }
+        };
+        nameCont.appendChild(input);
+        input.focus();
+        break;
+      }
+    }
+  }
+  function finishRenameMat(job, oldName, newName) {
+    if (!newName || newName === oldName) {
+      renderAll();
+      return;
+    }
+    if (data.jobs[job].mats[newName] !== undefined) {
+      alert('Material name already exists in this job.');
+      renderAll();
+      return;
+    }
+    // Rename in mats and matOrder
+    const qty = data.jobs[job].mats[oldName];
+    delete data.jobs[job].mats[oldName];
+    data.jobs[job].mats[newName] = qty;
+    const idx = data.jobs[job].matOrder.indexOf(oldName);
+    if (idx !== -1) data.jobs[job].matOrder[idx] = newName;
+
+    // Add to global history if new
+    if (!data.materialHistory.includes(newName)) {
+      data.materialHistory.push(newName);
+    }
+    save();
+    renderAll();
+  }
+
+  // Delete Material
+  function deleteMaterial(job, mat) {
+    if (!confirm(`Delete material "${mat}" from job "${job}"?`)) return;
+    delete data.jobs[job].mats[mat];
+    const idx = data.jobs[job].matOrder.indexOf(mat);
+    if (idx !== -1) data.jobs[job].matOrder.splice(idx, 1);
+    save();
+    renderAll();
+  }
+
+  // Update quantity by +/- 1
+  function updateQty(job, mat, delta) {
+    let q = data.jobs[job].mats[mat];
+    q += delta;
+    if (q < 0) q = 0;
+    data.jobs[job].mats[mat] = q;
+    save();
+    renderAll();
+  }
+
+  // Set quantity from input
+  function setQty(job, mat, val) {
+    let q = parseInt(val);
+    if (isNaN(q) || q < 0) q = 0;
+    data.jobs[job].mats[mat] = q;
+    save();
+    // We do NOT re-render here to avoid hiding materials
+  }
+
+  // Filter state
+  let currentFilter = '';
+
+  // Search filter input handler
+  document.getElementById('filter-input').addEventListener('input', e => {
+    currentFilter = e.target.value.toLowerCase();
+    renderAll();
+  });
+
+  // Toggle materials visibility for a job
+  function toggleMaterials(job) {
+    const matDiv = document.getElementById(`mats-${job}`);
+    const btn = document.getElementById(`toggle-btn-${job}`);
+    const showing = matDiv.style.display !== 'none';
+    if (showing) {
+      matDiv.style.display = 'none';
+      btn.innerText = 'Show';
+      expandedJobs.delete(job);
+    } else {
+      matDiv.style.display = '';
+      btn.innerText = 'Hide';
+      expandedJobs.add(job);
+    }
+  }
+
+  // Export Data
+  document.getElementById('export-btn').onclick = () => {
+    const dataStr = JSON.stringify(data, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'material_list_data.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // Import Data
+  document.getElementById('import-btn').onclick = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'application/json';
+    input.onchange = e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const imported = JSON.parse(reader.result);
+          if (imported.jobs && imported.jobOrder && imported.materialHistory) {
+            data = imported;
+            // reset expandedJobs to all collapsed on import
+            expandedJobs.clear();
+            save();
+            renderAll();
+            alert('Data imported successfully!');
+          } else {
+            alert('Invalid data format.');
+          }
+        } catch {
+          alert('Error parsing file.');
+        }
+      };
+      reader.readAsText(file);
+    };
+    input.click();
+  };
+
+  // Autocomplete material names
+  function showAutocomplete(input, job) {
+    const val = input.value.toLowerCase();
+    const listDiv = document.getElementById(`autocomplete-list-${job}`);
+    listDiv.innerHTML = '';
+    if (!val) {
+      listDiv.style.display = 'none';
+      return;
+    }
+    // Filter global materialHistory excluding already added materials for this job
+    const jobMats = new Set(data.jobs[job].matOrder);
+    const matches = data.materialHistory.filter(m => m.toLowerCase().includes(val) && !jobMats.has(m));
+    if (matches.length === 0) {
+      listDiv.style.display = 'none';
+      return;
+    }
+    for (const m of matches) {
+      const item = document.createElement('div');
+      item.className = 'autocomplete-item';
+      item.textContent = m;
+      item.onclick = () => {
+        input.value = m;
+        listDiv.style.display = 'none';
+        input.focus();
+      };
+      listDiv.appendChild(item);
+    }
+    listDiv.style.display = 'block';
+  }
+  function clearAutocomplete(job) {
+    const listDiv = document.getElementById(`autocomplete-list-${job}`);
+    if (listDiv) listDiv.style.display = 'none';
+  }
+
+  // Render all jobs and materials
+  function renderAll() {
+    const jobList = document.getElementById('job-list');
+    jobList.innerHTML = '';
+
+    for (const job of data.jobOrder) {
+      const jobData = data.jobs[job];
+
+      // Apply filter: show job only if it or any of its materials match the filter
+      const jobNameLower = job.toLowerCase();
+      const matsMatch = jobData.matOrder.some(m => m.toLowerCase().includes(currentFilter));
+      if (currentFilter && !jobNameLower.includes(currentFilter) && !matsMatch) continue;
+
+      const jobItem = document.createElement('li');
+      jobItem.className = 'job-item';
+      jobItem.dataset.job = job;
+
+      // Job header
+      const header = document.createElement('div');
+      header.className = 'job-header';
+
+      const jobNameInput = document.createElement('input');
+      jobNameInput.type = 'text';
+      jobNameInput.value = job;
+      jobNameInput.title = "Click to rename job";
+      jobNameInput.addEventListener('change', e => {
+        renameJob(job, e.target.value);
+      });
+      header.appendChild(jobNameInput);
+
+      const toggleBtn = document.createElement('button');
+      toggleBtn.id = `toggle-btn-${job}`;
+      toggleBtn.textContent = expandedJobs.has(job) ? 'Hide' : 'Show';
+      toggleBtn.onclick = () => toggleMaterials(job);
+      header.appendChild(toggleBtn);
+
+      const deleteBtn = document.createElement('button');
+      deleteBtn.textContent = 'Delete Job';
+      deleteBtn.style.background = '#dc3545';
+      deleteBtn.onclick = () => deleteJob(job);
+      header.appendChild(deleteBtn);
+
+      jobItem.appendChild(header);
+
+      // Materials container (hidden/shown based on expandedJobs)
+      const matsDiv = document.createElement('div');
+      matsDiv.className = 'materials';
+      matsDiv.id = `mats-${job}`;
+      matsDiv.style.display = expandedJobs.has(job) ? '' : 'none';
+
+      // Materials list
+      for (const mat of jobData.matOrder) {
+        const qty = jobData.mats[mat];
+        // Filter materials by search
+        if (currentFilter && !mat.toLowerCase().includes(currentFilter) && !job.toLowerCase().includes(currentFilter)) continue;
+
+        const matDiv = document.createElement('div');
+        matDiv.className = 'material';
+        matDiv.dataset.mat = mat;
+
+        // Name container (click to rename)
+        const nameCont = document.createElement('div');
+        nameCont.className = 'name-container';
+
+        const nameSpan = document.createElement('span');
+        nameSpan.textContent = mat;
+        nameSpan.title = "Click to rename material";
+        nameSpan.style.userSelect = 'none';
+        nameSpan.onclick = () => startRenameMat(job, mat);
+
+        nameCont.appendChild(nameSpan);
+        matDiv.appendChild(nameCont);
+
+        // Quantity controls
+        const minusBtn = document.createElement('button');
+        minusBtn.textContent = '-';
+        minusBtn.title = 'Decrease quantity';
+        minusBtn.onclick = () => updateQty(job, mat, -1);
+        matDiv.appendChild(minusBtn);
+
+        const qtyInput = document.createElement('input');
+        qtyInput.type = 'number';
+        qtyInput.min = 0;
+        qtyInput.value = qty;
+        qtyInput.title = 'Edit quantity';
+        qtyInput.oninput = e => setQty(job, mat, e.target.value);
+        qtyInput.onchange = e => save(); // save after manual edit
+        matDiv.appendChild(qtyInput);
+
+        const plusBtn = document.createElement('button');
+        plusBtn.textContent = '+';
+        plusBtn.title = 'Increase quantity';
+        plusBtn.onclick = () => updateQty(job, mat, 1);
+        matDiv.appendChild(plusBtn);
+
+        // Delete material button
+        const delMatBtn = document.createElement('button');
+        delMatBtn.textContent = 'Delete';
+        delMatBtn.style.background = '#dc3545';
+        delMatBtn.title = 'Delete material';
+        delMatBtn.onclick = () => deleteMaterial(job, mat);
+        matDiv.appendChild(delMatBtn);
+
+        matsDiv.appendChild(matDiv);
+      }
+
+      // Add material input
+      const addMatDiv = document.createElement('div');
+      addMatDiv.className = 'add-material';
+      addMatDiv.style.position = 'relative'; // for autocomplete positioning
+
+      const addMatInput = document.createElement('input');
+      addMatInput.type = 'text';
+      addMatInput.placeholder = 'Add new material...';
+      addMatInput.id = `add-mat-${job}`;
+      addMatInput.autocomplete = 'off';
+      addMatInput.oninput = () => showAutocomplete(addMatInput, job);
+      addMatInput.onblur = () => setTimeout(() => clearAutocomplete(job), 200);
+      addMatInput.onkeydown = e => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          addMaterial(job);
+        }
+      };
+      addMatDiv.appendChild(addMatInput);
+
+      const addMatBtn = document.createElement('button');
+      addMatBtn.textContent = 'Add';
+      addMatBtn.onclick = () => addMaterial(job);
+      addMatDiv.appendChild(addMatBtn);
+
+      const autocompleteDiv = document.createElement('div');
+      autocompleteDiv.className = 'autocomplete-list';
+      autocompleteDiv.id = `autocomplete-list-${job}`;
+      autocompleteDiv.style.display = 'none';
+      addMatDiv.appendChild(autocompleteDiv);
+
+      matsDiv.appendChild(addMatDiv);
+
+      jobItem.appendChild(matsDiv);
+      jobList.appendChild(jobItem);
+    }
+  }
+
+  // Combined summary view
+  function showSummary() {
+    const summaryModal = document.getElementById('summary-modal');
+    const summaryList = document.getElementById('summary-list');
+    summaryList.innerHTML = '';
+
+    // Combine materials across all jobs
+    const combined = {};
+    for (const job of data.jobOrder) {
+      for (const mat of data.jobs[job].matOrder) {
+        if (!combined[mat]) combined[mat] = 0;
+        combined[mat] += data.jobs[job].mats[mat];
+      }
+    }
+
+    // Sort alphabetically
+    const matsSorted = Object.keys(combined).sort((a, b) => a.localeCompare(b));
+    if (matsSorted.length === 0) {
+      const li = document.createElement('li');
+      li.textContent = 'No materials added yet.';
+      summaryList.appendChild(li);
+    } else {
+      for (const mat of matsSorted) {
+        const li = document.createElement('li');
+        li.textContent = `${mat}: ${combined[mat]}`;
+        summaryList.appendChild(li);
+      }
+    }
+
+    summaryModal.classList.add('show');
+    summaryModal.focus();
+  }
+  function hideSummary() {
+    document.getElementById('summary-modal').classList.remove('show');
+  }
+
+  document.getElementById('add-job-btn').onclick = addJob;
+  document.getElementById('summary-btn').onclick = showSummary;
+  document.getElementById('summary-close').onclick = hideSummary;
+
+  // Initial render
+  renderAll();
+</script>
+
+</body>
+</html>
